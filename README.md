@@ -119,60 +119,6 @@ Open your browser and navigate to:
 http://127.0.0.1:8000
 ```
 
----
-
-## 📦 Deployment Guide
-
-### Option 1: Deploying on Render (Recommended)
-
-1. **Push your code to GitHub**:
-   Ensure your latest code is pushed to your repository (`main` branch).
-
-2. **Create a PostgreSQL Database on Render**:
-   - Log into [Render Dashboard](https://dashboard.render.com/).
-   - Click **New +** $\rightarrow$ **PostgreSQL**.
-   - Name your database (e.g. `tripmate-db`) and click **Create Database**.
-   - Copy the **External Database URL** (e.g. `postgresql://user:password@dpg-xxx.oregon-postgres.render.com/dbname`).
-
-3. **Deploy as a Web Service on Render**:
-   - In Render Dashboard, click **New +** $\rightarrow$ **Web Service**.
-   - Connect your GitHub repository (`TripMate-AI-Final`).
-   - Configure the service:
-     - **Name**: `tripmate-ai`
-     - **Environment**: `Python 3`
-     - **Build Command**: `pip install -r requirements.txt`
-     - **Start Command**: `uvicorn app:app --host 0.0.0.0 --port $PORT`
-   - Scroll down to **Environment Variables** and add:
-     - `GROQ_API_KEY`
-     - `AVIATIONSTACK_API_KEY`
-     - `TAVILY_API_KEY`
-     - `OPENWEATHER_API_KEY`
-     - `DATABASE_URL` *(Paste the Render PostgreSQL URL)*
-     - `DEFAULT_ORIGIN_IATA` = `DAC`
-   - Click **Create Web Service**.
-
----
-
-### Option 2: Deployment via Docker
-
-1. **Build the Docker image**:
-   ```bash
-   docker build -t tripmate-ai .
-   ```
-
-2. **Run the Container**:
-   ```bash
-   docker run -d \
-     -p 8000:8000 \
-     --env-file .env \
-     --name tripmate-app \
-     tripmate-ai
-   ```
-
-3. **Access Application**:
-   Navigate to `http://localhost:8000`.
-
----
 
 ## 📜 License
 
