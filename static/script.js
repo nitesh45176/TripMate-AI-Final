@@ -243,76 +243,8 @@ function showResult(answer, threadId, isDraft = false, data = {}) {
     planStatusTag.className = "status-tag final";
   }
 
-  // Populate sub-tabs if data exists
-  setupResultSubTabs(data);
-
   resultSection.classList.remove("hidden");
   resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function setupResultSubTabs(data) {
-  const flightBtn = document.getElementById("tabFlightBtn");
-  const hotelBtn = document.getElementById("tabHotelBtn");
-  const weatherBtn = document.getElementById("tabWeatherBtn");
-  const budgetBtn = document.getElementById("tabBudgetBtn");
-
-  const flightBox = document.getElementById("flightBox");
-  const hotelBox = document.getElementById("hotelBox");
-  const weatherBox = document.getElementById("weatherBox");
-  const budgetBox = document.getElementById("budgetBox");
-
-  // Flight tab
-  if (data.flight_results && data.flight_results.trim()) {
-    renderMarkdown(flightBox, data.flight_results);
-    flightBtn.classList.remove("hidden");
-  } else {
-    flightBtn.classList.add("hidden");
-  }
-
-  // Hotel tab
-  if (data.hotel_results && data.hotel_results.trim()) {
-    renderMarkdown(hotelBox, data.hotel_results);
-    hotelBtn.classList.remove("hidden");
-  } else {
-    hotelBtn.classList.add("hidden");
-  }
-
-  // Weather tab
-  if (data.weather_results && data.weather_results.trim()) {
-    renderMarkdown(weatherBox, data.weather_results);
-    weatherBtn.classList.remove("hidden");
-  } else {
-    weatherBtn.classList.add("hidden");
-  }
-
-  // Budget tab
-  if (data.budget_results && data.budget_results.trim()) {
-    renderMarkdown(budgetBox, data.budget_results);
-    budgetBtn.classList.remove("hidden");
-  } else {
-    budgetBtn.classList.add("hidden");
-  }
-}
-
-function switchResultTab(tabName, btnElement) {
-  // Reset tab buttons
-  document.querySelectorAll(".res-tab").forEach(btn => btn.classList.remove("active"));
-  btnElement.classList.add("active");
-
-  // Reset tab panes
-  document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.add("hidden"));
-
-  if (tabName === "fullPlan") {
-    document.getElementById("tabFullPlan").classList.remove("hidden");
-  } else if (tabName === "flightTab") {
-    document.getElementById("tabFlight").classList.remove("hidden");
-  } else if (tabName === "hotelTab") {
-    document.getElementById("tabHotel").classList.remove("hidden");
-  } else if (tabName === "weatherTab") {
-    document.getElementById("tabWeather").classList.remove("hidden");
-  } else if (tabName === "budgetTab") {
-    document.getElementById("tabBudget").classList.remove("hidden");
-  }
 }
 
 function showApproval(data) {

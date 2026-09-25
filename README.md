@@ -2,7 +2,7 @@
 
 **TripMate AI** is an advanced, production-ready multi-agent travel planning system built with **FastAPI**, **LangGraph**, **Groq (GPT-OSS 120B)**, **PostgreSQL**, and **Model Context Protocol (MCP)** integrations for live aviation, weather, and hotel search.
 
-Featuring an **autonomous supervisor router**, **safety guardrails**, **token-optimized LLM calls**, and a **Human-in-the-Loop (HITL) approval gate**, TripMate AI generates comprehensive, budget-aware, multi-day travel itineraries complete with interactive UI sub-tabs and PDF export capabilities.
+Featuring an **autonomous supervisor router**, **safety guardrails**, **token-optimized LLM calls**, and a **Human-in-the-Loop (HITL) approval gate**, TripMate AI generates comprehensive, budget-aware, multi-day travel itineraries complete with interactive UI and PDF export capabilities.
 
 ---
 
@@ -17,8 +17,33 @@ Featuring an **autonomous supervisor router**, **safety guardrails**, **token-op
 - **💰 Budget Feasibility Analyst**: Evaluates pricing risk factors, category breakdowns, and money-saving advice.
 - **👤 Human-in-the-Loop (HITL) Gate**: Intercepts draft itineraries using LangGraph `interrupt()`, allowing travelers to approve or request revisions (*Lower Hotel Budget*, *Faster Flight*, *More Free Time*) before generating the final verified response.
 - **⚡ Token Rate-Limit Resilience**: Includes prompt context truncation and exponential backoff retry handling for Groq's 8,000 TPM limit.
-- **🎨 Glassmorphism Interactive UI**: Features dual input modes (Natural Prompt vs Guided Form Builder), visual agent execution cards, sub-tabs for flights/hotels/weather/budget, markdown rendering, and 1-click **PDF Download**.
+- **🎨 Glassmorphism Interactive UI**: Features dual input modes (Natural Prompt vs Guided Form Builder), visual agent execution cards, markdown rendering, and 1-click **PDF Download**.
 
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowgraph TD
+    User([User Request]) --> Guardrail{Input Guardrail}
+    Guardrail -->|Blocked| BlockedResponse[Return Safety Explanation]
+    Guardrail -->|Passed| Supervisor[Supervisor Agent]
+    
+    Supervisor --> FlightAgent[✈️ Flight Agent / AviationStack MCP]
+    Supervisor --> HotelAgent[🏨 Hotel Agent / Tavily MCP]
+    Supervisor --> WeatherAgent[🌦️ Weather Agent / OpenWeather MCP]
+    Supervisor --> BudgetAgent[💰 Budget Analyst Agent]
+    
+    FlightAgent --> ItineraryAgent[🗓️ Itinerary Specialist Agent]
+    HotelAgent --> ItineraryAgent
+    WeatherAgent --> ItineraryAgent
+    BudgetAgent --> ItineraryAgent
+    
+    ItineraryAgent --> HITL{👤 Human-in-the-Loop Review}
+    HITL -->|Revise Feedback| FinalAgent[✨ Final Response Agent]
+    HITL -->|Approved| FinalAgent
+    FinalAgent --> Response([Final Travel Plan + PDF Export])
+```
 
 ---
 
@@ -32,7 +57,7 @@ TripMate-AI-Final/
 ├── weather_mcp_server.py       # Custom FastMCP weather server (OpenWeather API)
 ├── static/
 │   ├── style.css               # Glassmorphism UI styling & print layout
-│   └── script.js               # Frontend state management, tab switching & API handling
+│   └── script.js               # Frontend state management & API handling
 ├── templates/
 │   └── index.html              # Main single-page application template
 ├── Dockerfile                  # Container build instructions
@@ -119,6 +144,60 @@ Open your browser and navigate to:
 http://127.0.0.1:8000
 ```
 
+---
+
+## 📦 Deployment Guide
+
+### Option 1: Deploying on Render (Recommended)
+
+1. **Push your code to GitHub**:
+   Ensure your latest code is pushed to your repository (`main` branch).
+
+2. **Create a PostgreSQL Database on Render**:
+   - Log into [Render Dashboard](https://dashboard.render.com/).
+   - Click **New +** $\rightarrow$ **PostgreSQL**.
+   - Name your database (e.g. `tripmate-db`) and click **Create Database**.
+   - Copy the **External Database URL** (e.g. `postgresql://user:password@dpg-xxx.oregon-postgres.render.com/dbname`).
+
+3. **Deploy as a Web Service on Render**:
+   - In Render Dashboard, click **New +** $\rightarrow$ **Web Service**.
+   - Connect your GitHub repository (`TripMate-AI-Final`).
+   - Configure the service:
+     - **Name**: `tripmate-ai`
+     - **Environment**: `Python 3`
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+   - Scroll down to **Environment Variables** and add:
+     - `GROQ_API_KEY`
+     - `AVIATIONSTACK_API_KEY`
+     - `TAVILY_API_KEY`
+     - `OPENWEATHER_API_KEY`
+     - `DATABASE_URL` *(Paste the Render PostgreSQL URL)*
+     - `DEFAULT_ORIGIN_IATA` = `DAC`
+   - Click **Create Web Service**.
+
+---
+
+### Option 2: Deployment via Docker
+
+1. **Build the Docker image**:
+   ```bash
+   docker build -t tripmate-ai .
+   ```
+
+2. **Run the Container**:
+   ```bash
+   docker run -d \
+     -p 8000:8000 \
+     --env-file .env \
+     --name tripmate-app \
+     tripmate-ai
+   ```
+
+3. **Access Application**:
+   Navigate to `http://localhost:8000`.
+
+---
 
 ## 📜 License
 
@@ -131,3 +210,4 @@ Distributed under the MIT License. See `LICENSE` for details.
 - **LangGraph & LangChain**: For multi-agent state graph management and Human-in-the-Loop interrupts.
 - **Groq**: High-speed LLM inference engine (`openai/gpt-oss-120b`).
 - **FastMCP**: Model Context Protocol integration framework.
+

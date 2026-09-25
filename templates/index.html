@@ -214,25 +214,6 @@
         </div>
       </div>
 
-      <!-- Result View Tabs -->
-      <div id="resultTabs" class="result-tabs">
-        <button class="res-tab active" onclick="switchResultTab('fullPlan', this)">
-          🗓️ Full Plan
-        </button>
-        <button class="res-tab hidden" id="tabFlightBtn" onclick="switchResultTab('flightTab', this)">
-          ✈️ Flights
-        </button>
-        <button class="res-tab hidden" id="tabHotelBtn" onclick="switchResultTab('hotelTab', this)">
-          🏨 Accommodation
-        </button>
-        <button class="res-tab hidden" id="tabWeatherBtn" onclick="switchResultTab('weatherTab', this)">
-          🌦️ Weather
-        </button>
-        <button class="res-tab hidden" id="tabBudgetBtn" onclick="switchResultTab('budgetTab', this)">
-          💰 Budget & Costs
-        </button>
-      </div>
-
       <!-- Main Plan Content (PDF printable area) -->
       <div id="pdfContent" class="pdf-content">
         <div class="pdf-header">
@@ -241,25 +222,7 @@
           <hr>
         </div>
 
-        <div id="tabFullPlan" class="tab-pane active">
-          <div id="resultBox" class="result-box"></div>
-        </div>
-
-        <div id="tabFlight" class="tab-pane hidden">
-          <div id="flightBox" class="result-box"></div>
-        </div>
-
-        <div id="tabHotel" class="tab-pane hidden">
-          <div id="hotelBox" class="result-box"></div>
-        </div>
-
-        <div id="tabWeather" class="tab-pane hidden">
-          <div id="weatherBox" class="result-box"></div>
-        </div>
-
-        <div id="tabBudget" class="tab-pane hidden">
-          <div id="budgetBox" class="result-box"></div>
-        </div>
+        <div id="resultBox" class="result-box"></div>
       </div>
     </section>
 
