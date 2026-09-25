@@ -19,31 +19,6 @@ Featuring an **autonomous supervisor router**, **safety guardrails**, **token-op
 - **⚡ Token Rate-Limit Resilience**: Includes prompt context truncation and exponential backoff retry handling for Groq's 8,000 TPM limit.
 - **🎨 Glassmorphism Interactive UI**: Features dual input modes (Natural Prompt vs Guided Form Builder), visual agent execution cards, sub-tabs for flights/hotels/weather/budget, markdown rendering, and 1-click **PDF Download**.
 
----
-
-## 🏗️ System Architecture
-
-```mermaid
-flowgraph TD
-    User([User Request]) --> Guardrail{Input Guardrail}
-    Guardrail -->|Blocked| BlockedResponse[Return Safety Explanation]
-    Guardrail -->|Passed| Supervisor[Supervisor Agent]
-    
-    Supervisor --> FlightAgent[✈️ Flight Agent / AviationStack MCP]
-    Supervisor --> HotelAgent[🏨 Hotel Agent / Tavily MCP]
-    Supervisor --> WeatherAgent[🌦️ Weather Agent / OpenWeather MCP]
-    Supervisor --> BudgetAgent[💰 Budget Analyst Agent]
-    
-    FlightAgent --> ItineraryAgent[🗓️ Itinerary Specialist Agent]
-    HotelAgent --> ItineraryAgent
-    WeatherAgent --> ItineraryAgent
-    BudgetAgent --> ItineraryAgent
-    
-    ItineraryAgent --> HITL{👤 Human-in-the-Loop Review}
-    HITL -->|Revise Feedback| FinalAgent[✨ Final Response Agent]
-    HITL -->|Approved| FinalAgent
-    FinalAgent --> Response([Final Travel Plan + PDF Export])
-```
 
 ---
 
