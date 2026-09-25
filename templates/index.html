@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TripMate AI — Smart Multi-Agent Travel Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="page-bg">
+    <div class="gradient-circle circle-1"></div>
+    <div class="gradient-circle circle-2"></div>
+    <div class="gradient-circle circle-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.7 5.2c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">TripMate AI</span>
+          <span class="brand-tag">LangGraph • MCP • Supervisor</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="threadBadge" class="thread-badge" title="Active conversation thread">
+          <span class="pulse-dot"></span>
+          <span id="threadBadgeText">New Session</span>
+        </div>
+        <button class="new-session-btn" onclick="startNewSession()" title="Start a fresh trip planning session">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          New Plan
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <!-- Hero Banner -->
+    <section class="hero-section">
+      <div class="badge">
+        <span class="sparkle">✨</span> AI Multi-Agent Travel Intelligence Engine
+      </div>
+      <h1>Design Your Perfect Journey <br><span class="gradient-text">Powered by AI Agents</span></h1>
+      <p>
+        Autonomous Flight, Hotel, Weather, and Budget agents collaborate to build a customized, interactive travel plan tailored to your budget and preferences.
+      </p>
+    </section>
+
+    <!-- Main Input & Guided Planner Card -->
+    <section class="planner-card">
+      <!-- Mode Toggle Bar -->
+      <div class="planner-mode-bar">
+        <div class="mode-tabs">
+          <button class="mode-tab active" id="tabFreeform" onclick="switchInputMode('freeform')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Natural Request
+          </button>
+          <button class="mode-tab" id="tabGuided" onclick="switchInputMode('guided')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Guided Form
+          </button>
+        </div>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          Groq 120B Ready
+        </div>
+      </div>
+
+      <!-- Freeform Text Request Area -->
+      <div id="freeformArea" class="input-area">
+        <div class="textarea-wrapper">
+          <textarea
+            id="userInput"
+            placeholder="Describe your dream vacation... (e.g. Plan a complete 7 days Japan trip from Bangladesh including flights, hotels and sightseeing under 2 lakhs)"
+            onkeyup="updateCharCount()"
+          ></textarea>
+          <div class="textarea-footer">
+            <span class="hint-key">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit</span>
+            <span id="charCount" class="char-count">0 chars</span>
+          </div>
+        </div>
+        <button id="sendBtn" onclick="sendMessage()">
+          <span id="btnText" class="btn-content">
+            <span>Generate Plan</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
+          <span id="btnLoader" class="loader hidden"></span>
+        </button>
+      </div>
+
+      <!-- Guided Form Inputs (Alternative mode) -->
+      <div id="guidedArea" class="guided-form hidden">
+        <div class="guided-grid">
+          <div class="input-group">
+            <label for="gDestination">Destination City/Country</label>
+            <input type="text" id="gDestination" placeholder="e.g. Tokyo, Japan or Paris, France">
+          </div>
+          <div class="input-group">
+            <label for="gOrigin">Departure Airport / City</label>
+            <input type="text" id="gOrigin" placeholder="e.g. Dhaka (DAC) or New York (JFK)">
+          </div>
+          <div class="input-group">
+            <label for="gDuration">Trip Length (Days)</label>
+            <input type="text" id="gDuration" placeholder="e.g. 7 Days">
+          </div>
+          <div class="input-group">
+            <label for="gBudget">Total Budget Limit</label>
+            <input type="text" id="gBudget" placeholder="e.g. 2 Lakhs BDT or $2,500 USD">
+          </div>
+          <div class="input-group full-width">
+            <label for="gStyle">Travel Style & Preferences</label>
+            <select id="gStyle">
+              <option value="Balanced Culture & Sightseeing">Balanced Sightseeing & Culture</option>
+              <option value="Budget Friendly & Backpacker">Budget Friendly & Efficient</option>
+              <option value="Luxury & Relaxation">Luxury & Relaxation</option>
+              <option value="Adventure & Fast-Paced">Adventure & Outdoor Exploration</option>
+              <option value="Family Friendly">Family Friendly & Comfortable</option>
+            </select>
+          </div>
+        </div>
+        <button class="guided-submit-btn" onclick="applyGuidedForm()">
+          Apply & Build Trip Plan ✨
+        </button>
+      </div>
+
+      <!-- Quick Preset Inspirations -->
+      <div class="quick-presets">
+        <span class="presets-label">Popular Trips:</span>
+        <div class="quick-prompts">
+          <button onclick="setPrompt('Plan a complete 7 days Japan trip from Bangladesh including flights, hotels and sightseeing under 2 lakhs.')">
+            ⛩️ Japan 7 Days
+          </button>
+          <button onclick="setPrompt('Plan a 5 days Dubai trip from Dhaka with flights, 4-star hotels and desert safari under 1.5 lakhs.')">
+            🕌 Dubai Experience
+          </button>
+          <button onclick="setPrompt('Plan a 7 days Thailand trip (Bangkok & Phuket) from Dhaka with budget beach resorts and island tours.')">
+            🏝️ Thailand Beach Trip
+          </button>
+          <button onclick="setPrompt('Plan a 6 days Paris & Rome European vacation with flights, central boutique hotels, and museum passes.')">
+            🗼 European Capitals
+          </button>
+          <button onclick="setPrompt('Give me flight options and airport choices from Dhaka to London with typical duration and prices.')">
+            ✈️ Flight Route Checker
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Execution Workflow & Agent Activity Tracker -->
+    <section id="workflowSection" class="workflow-section hidden">
+      <div class="workflow-header">
+        <div class="workflow-title-wrap">
+          <span class="eyebrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Multi-Agent Supervisor Node
+          </span>
+          <h2>Agent Execution Plan</h2>
+        </div>
+        <span id="guardrailBadge" class="guardrail-badge">Guardrail Passed</span>
+      </div>
+      
+      <p id="supervisorReasoning" class="supervisor-reasoning"></p>
+
+      <!-- Agent Activity Cards Container -->
+      <div class="agent-activity-grid">
+        <div id="agentChips" class="agent-chips"></div>
+      </div>
+    </section>
+
+    <!-- Loading Skeleton Card during processing -->
+    <div id="skeletonLoader" class="skeleton-card hidden">
+      <div class="skeleton-line shimmer title"></div>
+      <div class="skeleton-line shimmer text"></div>
+      <div class="skeleton-line shimmer text"></div>
+      <div class="skeleton-grid">
+        <div class="skeleton-box shimmer"></div>
+        <div class="skeleton-box shimmer"></div>
+        <div class="skeleton-box shimmer"></div>
+      </div>
+    </div>
+
+    <!-- Results Display Section -->
+    <section id="resultSection" class="result-section hidden">
+      <div class="result-header">
+        <div class="result-meta">
+          <div class="title-with-badge">
+            <h2 id="resultTitle">AI Travel Plan</h2>
+            <span id="planStatusTag" class="status-tag">Final Response</span>
+          </div>
+          <p id="threadInfo" class="thread-info-text">Thread ID: -</p>
+        </div>
+
+        <div class="result-actions">
+          <button class="action-btn copy-btn" onclick="copyResult()" title="Copy markdown to clipboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy</span>
+          </button>
+          <button class="action-btn download-btn" onclick="downloadPDF()" title="Export travel plan as formatted PDF document">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Result View Tabs -->
+      <div id="resultTabs" class="result-tabs">
+        <button class="res-tab active" onclick="switchResultTab('fullPlan', this)">
+          🗓️ Full Plan
+        </button>
+        <button class="res-tab hidden" id="tabFlightBtn" onclick="switchResultTab('flightTab', this)">
+          ✈️ Flights
+        </button>
+        <button class="res-tab hidden" id="tabHotelBtn" onclick="switchResultTab('hotelTab', this)">
+          🏨 Accommodation
+        </button>
+        <button class="res-tab hidden" id="tabWeatherBtn" onclick="switchResultTab('weatherTab', this)">
+          🌦️ Weather
+        </button>
+        <button class="res-tab hidden" id="tabBudgetBtn" onclick="switchResultTab('budgetTab', this)">
+          💰 Budget & Costs
+        </button>
+      </div>
+
+      <!-- Main Plan Content (PDF printable area) -->
+      <div id="pdfContent" class="pdf-content">
+        <div class="pdf-header">
+          <h1>TripMate AI — Custom Travel Plan</h1>
+          <p>Generated by LangGraph Multi-Agent Travel Planner</p>
+          <hr>
+        </div>
+
+        <div id="tabFullPlan" class="tab-pane active">
+          <div id="resultBox" class="result-box"></div>
+        </div>
+
+        <div id="tabFlight" class="tab-pane hidden">
+          <div id="flightBox" class="result-box"></div>
+        </div>
+
+        <div id="tabHotel" class="tab-pane hidden">
+          <div id="hotelBox" class="result-box"></div>
+        </div>
+
+        <div id="tabWeather" class="tab-pane hidden">
+          <div id="weatherBox" class="result-box"></div>
+        </div>
+
+        <div id="tabBudget" class="tab-pane hidden">
+          <div id="budgetBox" class="result-box"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Human-in-the-Loop Approval Card -->
+    <section id="approvalSection" class="approval-section hidden">
+      <div class="approval-badge-header">
+        <div class="approval-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+          <span class="eyebrow amber">Human-in-the-Loop Gate</span>
+          <h2>Review & Approve Draft Itinerary</h2>
+        </div>
+      </div>
+
+      <p id="approvalRequest" class="approval-desc">
+        Review the draft itinerary above. You can approve it as-is to finalize the plan, or request revisions by choosing quick adjustments below.
+      </p>
+
+      <!-- Quick Revision Feedback Chips -->
+      <div class="revision-presets">
+        <span class="rev-label">Quick Revisions:</span>
+        <div class="rev-chips">
+          <button type="button" onclick="appendFeedback('Please reduce overall hotel accommodation costs.')">💰 Lower Hotel Budget</button>
+          <button type="button" onclick="appendFeedback('Add more free leisure time and flexible sight-seeing hours.')">☕ More Free Time</button>
+          <button type="button" onclick="appendFeedback('Suggest alternative airlines or faster flights with shorter layovers.')">✈️ Faster Flight Options</button>
+          <button type="button" onclick="appendFeedback('Include authentic local dining and food market recommendations.')">🍜 Local Food Focus</button>
+        </div>
+      </div>
+
+      <textarea
+        id="approvalFeedback"
+        class="feedback-input"
+        placeholder="Type any specific changes or feedback here... (e.g. Change hotel location closer to city center)"
+      ></textarea>
+
+      <div class="approval-actions">
+        <button id="approveBtn" class="approve-btn" onclick="submitApproval(true)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Approve & Generate Final Plan
+        </button>
+        <button id="reviseBtn" class="revise-btn" onclick="submitApproval(false)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Request Revision
+        </button>
+      </div>
+    </section>
+
+    <!-- Error Alert Box -->
+    <section id="errorBox" class="error-box hidden"></section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <span>Built with FastAPI • LangGraph • Groq 120B • Tavily • AviationStack • OpenWeather MCP</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="/static/script.js"></script>
+</body>
+</html>
