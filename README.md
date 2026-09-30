@@ -11,7 +11,7 @@ Featuring an **autonomous supervisor router**, **safety guardrails**, **token-op
 - **🤖 Supervisor Routing Engine**: Dynamically routes travel requests to specialized agents (*Flight*, *Hotel*, *Weather*, *Budget*, *Itinerary*) based on user intent.
 - **🛡️ Input Guardrail Agent**: Detects and blocks off-topic or unsafe queries before invoking specialized agents.
 - **🔌 Model Context Protocol (MCP) Integration**:
-  - **AviationStack MCP**: Retrieves airport codes, route options, and airline lists.
+  - **AviationStack MCP**: Retrieves airport code, route options, and airline lists.
   - **Tavily MCP**: Executes real-time web searches for top accommodations, neighborhood advice, and local attractions.
   - **OpenWeather MCP**: Fetches live weather conditions and 5-day forecasts for destination cities.
 - **💰 Budget Feasibility Analyst**: Evaluates pricing risk factors, category breakdowns, and money-saving advice.
