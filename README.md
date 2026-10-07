@@ -6,7 +6,7 @@ Featuring an **autonomous supervisor router**, **safety guardrails**, **token-op
 
 ---
 
-## 🌟 Key Features
+## 🌟 Key Feature
 
 - **🤖 Supervisor Routing Engine**: Dynamically routes travel requests to specialized agents (*Flight*, *Hotel*, *Weather*, *Budget*, *Itinerary*) based on user intent.
 - **🛡️ Input Guardrail Agent**: Detects and blocks off-topic or unsafe queries before invoking specialized agents.
