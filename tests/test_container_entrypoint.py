@@ -124,18 +124,73 @@ class ContainerEntrypointTests(unittest.TestCase):
     def test_http_readiness_requires_success_status(self):
         response = MagicMock()
         response.status = 200
-        with patch("container_entrypoint.urlopen") as urlopen:
-            urlopen.return_value.__enter__.return_value = response
+        opener = MagicMock()
+        opener.open.return_value.__enter__.return_value = response
+        with (
+            patch("container_entrypoint.build_opener", return_value=opener) as builder,
+            patch("container_entrypoint.ProxyHandler") as proxy_handler,
+        ):
             self.assertTrue(
                 container_entrypoint.http_service_ready("http://127.0.0.1/health")
             )
+        builder.assert_called_once_with(proxy_handler.return_value)
+        proxy_handler.assert_called_once_with({})
 
         response.status = 503
-        with patch("container_entrypoint.urlopen") as urlopen:
-            urlopen.return_value.__enter__.return_value = response
+        opener = MagicMock()
+        opener.open.return_value.__enter__.return_value = response
+        with (
+            patch("container_entrypoint.build_opener", return_value=opener),
+            patch("container_entrypoint.ProxyHandler"),
+        ):
             self.assertFalse(
                 container_entrypoint.http_service_ready("http://127.0.0.1/health")
             )
+
+    def test_litellm_readiness_wait_succeeds_when_health_check_recovers(self):
+        process = MagicMock()
+        process.poll.return_value = None
+
+        with (
+            patch(
+                "container_entrypoint.http_service_ready",
+                side_effect=[False, True],
+            ) as readiness,
+            patch("container_entrypoint.time.sleep"),
+        ):
+            container_entrypoint.wait_for_service(
+                "LiteLLM",
+                "http://127.0.0.1:4000/health/liveliness",
+                process,
+            )
+
+        self.assertEqual(
+            [call.args[0] for call in readiness.call_args_list],
+            [
+                "http://127.0.0.1:4000/health/liveliness",
+                "http://127.0.0.1:4000/health/liveliness",
+            ],
+        )
+
+    def test_litellm_readiness_timeout_when_health_never_succeeds(self):
+        process = MagicMock()
+        process.poll.return_value = None
+
+        with (
+            patch("container_entrypoint.time.monotonic", side_effect=[0.0, 0.5, 1.0]),
+            patch("container_entrypoint.http_service_ready", return_value=False),
+            patch("container_entrypoint.time.sleep"),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "LiteLLM did not become healthy within 1 seconds",
+            ):
+                container_entrypoint.wait_for_service(
+                    "LiteLLM",
+                    "http://127.0.0.1:4000/health/liveliness",
+                    process,
+                    timeout=1.0,
+                )
 
     def test_startup_fails_if_service_process_exits_early(self):
         process = MagicMock()

@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Callable, Sequence
 from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.request import ProxyHandler, build_opener
 
 from dotenv import load_dotenv
 
@@ -100,7 +100,8 @@ def application_command(environ: dict[str, str] | None = None) -> list[str]:
 
 def http_service_ready(url: str, timeout: float = 2.0) -> bool:
     try:
-        with urlopen(url, timeout=timeout) as response:
+        opener = build_opener(ProxyHandler({}))
+        with opener.open(url, timeout=timeout) as response:
             return response.status == 200
     except (OSError, TimeoutError, URLError):
         return False
