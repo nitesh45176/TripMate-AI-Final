@@ -3,11 +3,13 @@ model_list:
     litellm_params:
       model: groq/openai/gpt-oss-120b
       api_key: os.environ/GROQ_API_KEY
+      timeout: 60
 
   - model_name: tripmate-fallback
     litellm_params:
       model: gemini/gemini-3.8-flash
       api_key: os.environ/GEMINI_API_KEY
+      timeout: 60
 
 router_settings:
   num_retries: 2

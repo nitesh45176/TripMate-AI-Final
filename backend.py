@@ -12,6 +12,7 @@ import uuid
 import asyncio
 import json
 import re
+import time
 import psycopg
 from psycopg.rows import dict_row
 from langgraph.graph import StateGraph, START, END
@@ -23,10 +24,11 @@ from langchain_core.messages import (
     AIMessage,
     SystemMessage,
 )
-from langchain_openai import ChatOpenAI
 
 
 from mcp_client import (
+    llm,
+    safe_error_message,
     tavily_mcp_search,
     extract_destination,
     forecast_mcp_search,
@@ -40,8 +42,8 @@ def get_database_url():
 
     if not database_url:
         raise ValueError(
-            "DATABASE_URL is missing. "
-            "Please add your Render PostgreSQL External Database URL to .env"
+            "DATABASE_URL is missing. Set it in the service environment "
+            "or add it to your local .env file."
         )
 
     if "sslmode=" not in database_url:
@@ -49,23 +51,6 @@ def get_database_url():
         database_url = f"{database_url}{separator}sslmode=require"
 
     return database_url
-
-
-LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY")
-
-if not LITELLM_MASTER_KEY:
-    raise ValueError(
-        "LITELLM_MASTER_KEY is missing. Please add it to your .env file."
-    )
-
-import time
-
-llm = ChatOpenAI(
-    model="tripmate-primary",
-    api_key=LITELLM_MASTER_KEY,
-    base_url="http://localhost:4000/v1",
-    max_retries=0,
-)
 
 
 def _truncate_text(text: Any, max_chars: int = 1500) -> str:
@@ -86,7 +71,7 @@ def _truncate_text(text: Any, max_chars: int = 1500) -> str:
 def _safe_llm_invoke(
     messages: list,
     max_tokens: int = 1500,
-    max_retries: int = 5,
+    max_retries: int = 3,
     invocation_counter: list[int] | None = None,
 ):
     """
@@ -134,7 +119,7 @@ def _safe_llm_invoke(
             ):
                 print(
                     f"Groq rate limit hit (attempt {attempt + 1}/{max_retries}). "
-                    f"Retrying in {backoff} seconds... Error: {exc}"
+                    f"Retrying in {backoff} seconds."
                 )
                 time.sleep(backoff)
                 backoff *= 2
@@ -324,7 +309,16 @@ def _rule_based_destination(query: str) -> str:
                 return candidate
 
     # Heuristic fallback for common travel prompts without capitals.
-    for key in ["paris", "tokyo", "dubai", "london", "delhi", "new york", "bangkok"]:
+    for key in [
+        "paris",
+        "tokyo",
+        "dubai",
+        "london",
+        "delhi",
+        "new york",
+        "bangkok",
+        "japan",
+    ]:
         if key in text.lower():
             return key.title()
 
@@ -413,14 +407,14 @@ User request:
         allowed = bool(guardrail_result.get("allowed", True))
         guardrail_reason = str(guardrail_result.get("reason", "")).strip()
     except Exception as exc:
-        print(f"Guardrail fallback used: {exc}")
+        print(f"Guardrail fallback used: {safe_error_message(exc)}")
         allowed = _rule_based_guardrail(query)
         guardrail_reason = (
             "Guardrail validation fallback applied deterministic routing rules."
             if allowed
             else "This request is unrelated to travel planning and was blocked."
         )
-        llm_errors = [str(exc)]
+        llm_errors = [safe_error_message(exc)]
     else:
         llm_errors = []
 
@@ -487,14 +481,14 @@ User request:
 
         reasoning = str(parsed.get("reasoning", "")).strip()
     except Exception as exc:
-        print(f"Supervisor fallback used: {exc}")
+        print(f"Supervisor fallback used: {safe_error_message(exc)}")
         selected_agents = _rule_based_supervisor(query)
         constraints = _rule_based_constraints(query)
         reasoning = (
             "Supervisor LLM was unavailable, so a deterministic rule-based "
             "fallback selected only the likely specialist agents for this request."
         )
-        llm_errors = [str(exc)]
+        llm_errors = [safe_error_message(exc)]
     else:
         llm_errors = []
 
@@ -541,10 +535,13 @@ def flight_agent(state: TravelState):
             "status": "error",
             "offers": [],
             "message": "",
-            "error": str(exc),
+            "error": safe_error_message(exc),
         }
         tool_errors.append(
-            {"tool": "aviationstack.flight_schedule", "error": str(exc)}
+            {
+                "tool": "aviationstack.flight_schedule",
+                "error": safe_error_message(exc),
+            }
         )
 
     return {
@@ -580,7 +577,7 @@ def hotel_agent(state: TravelState):
     except Exception as exc:
         print(
             f"HOTEL AGENT MCP ERROR: "
-            f"{type(exc).__name__}: {exc}",
+            f"{safe_error_message(exc)}",
             flush=True,
         )
 
@@ -591,7 +588,10 @@ def hotel_agent(state: TravelState):
             "label it as non-live advice."
         )
         tool_errors = [
-            {"tool": "tavily.tavily_search", "error": str(exc)}
+            {
+                "tool": "tavily.tavily_search",
+                "error": safe_error_message(exc),
+            }
         ]
 
     return {
@@ -621,7 +621,7 @@ def weather_agent(state: TravelState):
             "weather_results": "Weather information could not be retrieved.",
             "llm_calls": state.get("llm_calls", 0) + invocation_counter[0],
             "tool_errors": [],
-            "llm_errors": [str(exc)],
+            "llm_errors": [safe_error_message(exc)],
         }
 
     try:
@@ -654,7 +654,7 @@ Forecast:
     except Exception as exc:
         print(
             f"WEATHER AGENT MCP ERROR: "
-            f"{type(exc).__name__}: {exc}",
+            f"{safe_error_message(exc)}",
             flush=True,
         )
 
@@ -665,7 +665,7 @@ Forecast:
             "to verify the forecast before departure."
         )
         tool_errors = [
-            {"tool": "weather", "error": str(exc)}
+            {"tool": "weather", "error": safe_error_message(exc)}
         ]
 
     return {
@@ -724,8 +724,8 @@ If exact live prices are unavailable, clearly label estimates as approximate.
         )
         budget_result = str(response.content)
     except Exception as exc:
-        print(f"Budget fallback used: {exc}")
-        llm_errors = [str(exc)]
+        print(f"Budget fallback used: {safe_error_message(exc)}")
+        llm_errors = [safe_error_message(exc)]
         constraints = state.get("trip_constraints", {}) or _empty_constraints()
         destination = constraints.get("destination") or _rule_based_destination(state["user_query"])
         budget_result = (
@@ -785,8 +785,8 @@ Create a clear draft that is ready for human review.
         )
         itinerary_text = str(response.content)
     except Exception as exc:
-        print(f"Itinerary fallback used: {exc}")
-        llm_errors = [str(exc)]
+        print(f"Itinerary fallback used: {safe_error_message(exc)}")
+        llm_errors = [safe_error_message(exc)]
         destination = (state.get("trip_constraints", {}) or _empty_constraints()).get("destination") or _rule_based_destination(state["user_query"])
         duration = (state.get("trip_constraints", {}) or _empty_constraints()).get("duration") or "3-5 days"
         budget = (state.get("trip_constraints", {}) or _empty_constraints()).get("budget") or "budget-conscious"
@@ -917,8 +917,8 @@ Important:
         )
         final_text = str(response.content)
     except Exception as exc:
-        print(f"Final agent fallback used: {exc}")
-        llm_errors = [str(exc)]
+        print(f"Final agent fallback used: {safe_error_message(exc)}")
+        llm_errors = [safe_error_message(exc)]
         final_text = (
             f"Trip plan summary for: {state['user_query']}\n\n"
             f"- Destination: {state.get('trip_constraints', {}).get('destination') or _rule_based_destination(state['user_query']) or 'Not specified'}\n"

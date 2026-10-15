@@ -138,6 +138,9 @@ Create a `.env` file in the root directory (refer to `.env.example`):
 
 ```env
 GROQ_API_KEY="your_groq_api_key"
+GEMINI_API_KEY="your_gemini_api_key"
+LITELLM_MASTER_KEY="your_litellm_master_key"
+LITELLM_BASE_URL="http://127.0.0.1:4000/v1"
 AVIATIONSTACK_API_KEY="your_aviationstack_api_key"
 TRIPMATE_EVAL_MODE="false"
 DEFAULT_ORIGIN_IATA="DAC"
@@ -167,6 +170,15 @@ python app.py
 uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+When running outside Docker, start LiteLLM separately before submitting
+travel requests:
+```bash
+litellm --config litellm_config.yaml --host 127.0.0.1 --port 4000
+```
+The local gateway and application require the credentials shown in the
+environment setup above. The Docker deployment starts and supervises both
+processes in one container.
+
 Open your browser and navigate to:
 ```text
 http://127.0.0.1:8000
@@ -187,26 +199,39 @@ http://127.0.0.1:8000
    - Name your database (e.g. `tripmate-db`) and click **Create Database**.
    - Copy the **External Database URL** (e.g. `postgresql://user:password@dpg-xxx.oregon-postgres.render.com/dbname`).
 
-3. **Deploy as a Web Service on Render**:
+3. **Deploy the TripMate application as one Docker Web Service**:
    - In Render Dashboard, click **New +** $\rightarrow$ **Web Service**.
    - Connect your GitHub repository (`TripMate-AI-Final`).
    - Configure the service:
      - **Name**: `tripmate-ai`
-     - **Environment**: `Python 3`
-     - **Build Command**: `pip install -r requirements.txt`
-     - **Start Command**: `uvicorn app:app --host 0.0.0.0 --port $PORT`
-   - Scroll down to **Environment Variables** and add:
+     - **Environment**: `Docker`
+     - **Dockerfile Path**: `./Dockerfile`
+     - **Health Check Path**: `/health`
+   - Leave the Docker service's start command at its default so the Dockerfile
+     runs `tini -- python container_entrypoint.py`. The entrypoint validates
+     configuration, starts LiteLLM on `127.0.0.1:4000`, waits for its
+     `/health/liveliness` endpoint, then starts Uvicorn on `0.0.0.0:$PORT`.
+     It supervises both processes and terminates both on shutdown. The app
+     `/health` endpoint returns 503 if its local gateway is unhealthy.
+   - Set these environment variables on this **single** Render service:
+     - `LITELLM_MASTER_KEY` (use a strong generated secret)
      - `GROQ_API_KEY`
+     - `GEMINI_API_KEY`
      - `AVIATIONSTACK_API_KEY`
      - `TAVILY_API_KEY`
      - `OPENWEATHER_API_KEY`
-     - `DATABASE_URL` *(Paste the Render PostgreSQL URL)*
-     - `DEFAULT_ORIGIN_IATA` = `DAC`
+     - `DATABASE_URL` (Render PostgreSQL URL)
+     - `TRIPMATE_EVAL_MODE=false`
+     - `DEFAULT_ORIGIN_IATA=DAC` (optional)
+   - `LITELLM_BASE_URL` defaults to
+     `http://127.0.0.1:4000/v1` and normally should be left unset for this
+     single-container deployment. Set it only when intentionally overriding
+     the backend's gateway address.
    - Click **Create Web Service**.
 
 ---
 
-### Option 2: Deployment via Docker
+### Local Docker deployment
 
 1. **Build the Docker image**:
    ```bash
@@ -216,7 +241,7 @@ http://127.0.0.1:8000
 2. **Run the Container**:
    ```bash
    docker run -d \
-     -p 8000:8000 \
+     -p 8000:10000 \
      --env-file .env \
      --name tripmate-app \
      tripmate-ai
@@ -224,6 +249,11 @@ http://127.0.0.1:8000
 
 3. **Access Application**:
    Navigate to `http://localhost:8000`.
+
+The same container starts both LiteLLM and FastAPI. `GROQ_API_KEY`,
+`GEMINI_API_KEY`, and `LITELLM_MASTER_KEY` are required even when running
+evaluation mode. Evaluation mode continues to select the deterministic mock
+flight provider; it does not mock the LLM or other external services.
 
 ---
 

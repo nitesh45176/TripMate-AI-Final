@@ -2,7 +2,8 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
+from urllib.parse import quote, quote_plus, urlsplit
 
 import certifi
 from dotenv import load_dotenv
@@ -30,9 +31,6 @@ AVIATION_STACK_API_KEY = (
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-# LiteLLM gateway key
-LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY")
-
 WEATHER_SERVER_PATH = (
     BASE_DIR / "custom_weather_mcp_server.py"
     if (BASE_DIR / "custom_weather_mcp_server.py").is_file()
@@ -45,13 +43,30 @@ UVX_COMMAND = shutil.which("uvx") or "uvx"
 def _require_env(name: str, value: str | None) -> str:
     """Return an environment value or raise a readable setup error."""
 
-    if not value:
+    if not value or not value.strip():
         raise RuntimeError(
-            f"{name} is missing. "
-            f"Add {name}=your_key to the project .env file."
+            f"{name} is missing. Set it in the service environment "
+            "or add it to your local .env file."
         )
 
     return value
+
+
+def safe_error_message(error: Exception) -> str:
+    """Render exception details without exposing environment credentials."""
+
+    message = str(error)
+    for name, value in os.environ.items():
+        if not value or not any(
+            marker in name.upper()
+            for marker in ("_KEY", "TOKEN", "SECRET", "PASSWORD", "DATABASE_URL")
+        ):
+            continue
+        for secret in {value, quote(value, safe=""), quote_plus(value)}:
+            if secret:
+                message = message.replace(secret, "[REDACTED]")
+
+    return f"{type(error).__name__}: {message}"
 
 
 def _subprocess_env(**updates: str | None) -> dict[str, str]:
@@ -72,15 +87,41 @@ def _subprocess_env(**updates: str | None) -> dict[str, str]:
 # LLM - LiteLLM Gateway
 # =========================================================
 
-llm = ChatOpenAI(
-    model="tripmate-primary",
-    api_key=_require_env(
+def create_llm_client(
+    environ: Mapping[str, str] | None = None,
+) -> ChatOpenAI:
+    """Build the shared OpenAI-compatible client for the LiteLLM gateway."""
+
+    settings = os.environ if environ is None else environ
+    master_key = _require_env(
         "LITELLM_MASTER_KEY",
-        LITELLM_MASTER_KEY,
-    ),
-    base_url="http://localhost:4000/v1",
-    max_retries=0,
-)
+        settings.get("LITELLM_MASTER_KEY"),
+    )
+    base_url = settings.get(
+        "LITELLM_BASE_URL",
+        "http://127.0.0.1:4000/v1",
+    ).strip().rstrip("/")
+    parsed_url = urlsplit(base_url)
+    if (
+        parsed_url.scheme not in {"http", "https"}
+        or not parsed_url.netloc
+        or parsed_url.path.rstrip("/") != "/v1"
+    ):
+        raise RuntimeError(
+            "LITELLM_BASE_URL must be an absolute HTTP(S) gateway URL "
+            "ending in /v1, for example http://localhost:4000/v1."
+        )
+
+    return ChatOpenAI(
+        model="tripmate-primary",
+        api_key=master_key,
+        base_url=base_url,
+        timeout=60,
+        max_retries=0,
+    )
+
+
+llm = create_llm_client()
 
 
 # =========================================================
@@ -240,7 +281,7 @@ async def get_all_tools() -> None:
         except Exception as exc:
             print(
                 f"{server_name}: FAILED -> "
-                f"{type(exc).__name__}: {exc}"
+                f"{safe_error_message(exc)}"
             )
 
 
@@ -341,6 +382,7 @@ def _heuristic_destination(query: str) -> str:
         "delhi",
         "new york",
         "bangkok",
+        "japan",
     ]
     lowered = text.lower()
     for city in city_hints:

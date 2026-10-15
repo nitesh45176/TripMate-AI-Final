@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     curl \
+    tini \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -18,6 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8000
+EXPOSE 10000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD-SHELL curl -fsS "http://127.0.0.1:${PORT:-10000}/health" || exit 1
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["tini", "--", "python", "container_entrypoint.py"]

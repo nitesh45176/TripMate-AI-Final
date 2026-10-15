@@ -101,6 +101,21 @@ class EvaluationTests(unittest.TestCase):
         scores = evaluate_case({"result": "exists"}, case["expected"])
 
         self.assertEqual(scores["overall_status"], "FAIL")
+        self.assertEqual(scores["response_exists"], "FAIL")
+
+    def test_empty_answer_fails_response_existence(self):
+        case = EVAL_DATASET[0]
+        result = {
+            "guardrail_allowed": True,
+            "trip_constraints": {"destination": "Paris"},
+            "selected_agents": case["expected"]["required_agents"],
+            "answer": " \n ",
+        }
+
+        self.assertEqual(
+            evaluate_case(result, case["expected"])["response_exists"],
+            "FAIL",
+        )
 
     def test_guardrail_mismatch_fails_expected_off_topic_case(self):
         case = EVAL_DATASET[-1]

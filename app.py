@@ -1,5 +1,6 @@
 from pathlib import Path
-import traceback
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -9,6 +10,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from backend import run_travel_agent, resume_travel_agent
+from container_entrypoint import LITELLM_HEALTH_URL
+from mcp_client import safe_error_message
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -83,14 +86,13 @@ def travel_planner(request_data: TravelRequest):
         )
 
     except Exception as exc:
-        print("ERROR:", exc)
-        traceback.print_exc()
+        print(f"ERROR: {safe_error_message(exc)}")
 
         return JSONResponse(
             status_code=500,
             content={
                 "success": False,
-                "error": str(exc),
+                "error": safe_error_message(exc),
             },
         )
 
@@ -127,29 +129,39 @@ def approve_travel_plan(request_data: ApprovalRequest):
         )
 
     except Exception as exc:
-        print("APPROVAL ERROR:", exc)
-        traceback.print_exc()
+        print(f"APPROVAL ERROR: {safe_error_message(exc)}")
 
         return JSONResponse(
             status_code=500,
             content={
                 "success": False,
-                "error": str(exc),
+                "error": safe_error_message(exc),
             },
         )
 
 
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "ok",
+    try:
+        with urlopen(LITELLM_HEALTH_URL, timeout=2) as response:
+            gateway_healthy = response.status == 200
+    except (OSError, TimeoutError, URLError):
+        gateway_healthy = False
+
+    content = {
+        "status": "ok" if gateway_healthy else "degraded",
         "message": "TripMate AI API is running",
+        "gateway": "ok" if gateway_healthy else "unavailable",
         "features": [
             "supervisor_agent",
             "input_guardrail",
             "human_in_the_loop",
         ],
     }
+    return JSONResponse(
+        status_code=200 if gateway_healthy else 503,
+        content=content,
+    )
 
 
 @app.get("/favicon.ico")
