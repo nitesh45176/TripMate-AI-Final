@@ -10,13 +10,9 @@ from pydantic import BaseModel, Field
 
 from backend import run_travel_agent, resume_travel_agent
 
-# This is kept from the original project to allow the existing synchronous
-# agent functions to call async MCP helpers inside FastAPI.
-import nest_asyncio
-
-nest_asyncio.apply()
 
 BASE_DIR = Path(__file__).resolve().parent
+
 
 app = FastAPI(
     title="TripMate AI",
@@ -27,13 +23,17 @@ app = FastAPI(
     version="2.0.0",
 )
 
+
 app.mount(
     "/static",
     StaticFiles(directory=str(BASE_DIR / "static")),
     name="static",
 )
 
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+templates = Jinja2Templates(
+    directory=str(BASE_DIR / "templates")
+)
 
 
 class TravelRequest(BaseModel):
@@ -57,7 +57,7 @@ async def home(request: Request):
 
 
 @app.post("/api/travel")
-async def travel_planner(request_data: TravelRequest):
+def travel_planner(request_data: TravelRequest):
     try:
         user_message = request_data.message.strip()
 
@@ -96,14 +96,20 @@ async def travel_planner(request_data: TravelRequest):
 
 
 @app.post("/api/travel/approve")
-async def approve_travel_plan(request_data: ApprovalRequest):
+def approve_travel_plan(request_data: ApprovalRequest):
     try:
-        if not request_data.approved and not request_data.feedback.strip():
+        if (
+            not request_data.approved
+            and not request_data.feedback.strip()
+        ):
             return JSONResponse(
                 status_code=400,
                 content={
                     "success": False,
-                    "error": "Please provide revision feedback when rejecting the draft.",
+                    "error": (
+                        "Please provide revision feedback "
+                        "when rejecting the draft."
+                    ),
                 },
             )
 

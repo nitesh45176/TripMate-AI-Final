@@ -1,0 +1,332 @@
+{
+  "project": "TripMate-AI",
+  "generated_at": "2026-10-15T12:15:19.543811+05:30",
+  "completed_at": "2026-10-15T12:16:07.089898+05:30",
+  "evaluation_mode": "deterministic mock flight provider",
+  "real_aviationstack_requests": 0,
+  "summary": {
+    "total_cases": 5,
+    "passed": 5,
+    "failed": 0,
+    "errors": 0,
+    "external_service_errors": 0,
+    "llm_errors": 0,
+    "pass_rate": 1.0,
+    "total_llm_calls": 14
+  },
+  "dimensions": {
+    "guardrail": {
+      "correct": 5,
+      "evaluated": 5,
+      "accuracy": 1.0
+    },
+    "destination": {
+      "correct": 5,
+      "evaluated": 5,
+      "accuracy": 1.0
+    },
+    "agent_selection": {
+      "correct": 5,
+      "evaluated": 5,
+      "accuracy": 1.0
+    },
+    "response_exists": {
+      "correct": 5,
+      "evaluated": 5,
+      "accuracy": 1.0
+    },
+    "flight_search": {
+      "correct": 1,
+      "evaluated": 1,
+      "accuracy": 1.0
+    }
+  },
+  "cases": [
+    {
+      "id": "travel_001",
+      "query": "Plan a 5 day trip to Paris for 2 people with a budget of $2000.",
+      "expected": {
+        "guardrail_allowed": true,
+        "destination": "Paris",
+        "required_agents": [
+          "itinerary_agent",
+          "budget_agent"
+        ],
+        "allowed_agents": [
+          "budget_agent",
+          "itinerary_agent"
+        ]
+      },
+      "actual": {
+        "guardrail_allowed": true,
+        "destination": "Paris",
+        "trip_constraints": {
+          "destination": "Paris",
+          "origin": "",
+          "duration": "5 days",
+          "budget": "$2000",
+          "travel_style": "",
+          "special_preferences": []
+        },
+        "selected_agents": [
+          "budget_agent",
+          "itinerary_agent"
+        ],
+        "response_exists": false,
+        "llm_calls": 4
+      },
+      "scores": {
+        "guardrail": "PASS",
+        "destination": "PASS",
+        "agent_selection": "PASS",
+        "expected_agents": [
+          "budget_agent",
+          "itinerary_agent"
+        ],
+        "actual_agents": [
+          "budget_agent",
+          "itinerary_agent"
+        ],
+        "missing_agents": [],
+        "unexpected_agents": [],
+        "response_exists": "PASS",
+        "flight_search": "NOT_TESTED",
+        "tool_status": "NOT_TESTED",
+        "tool_errors": [],
+        "overall_status": "PASS",
+        "llm_errors": [],
+        "unvalidated_expected_fields": []
+      },
+      "overall_status": "PASS",
+      "tool_errors": [],
+      "llm_errors": [],
+      "runtime_error": null
+    },
+    {
+      "id": "travel_002",
+      "query": "I want to visit Tokyo for 7 days.",
+      "expected": {
+        "guardrail_allowed": true,
+        "destination": "Tokyo",
+        "required_agents": [
+          "itinerary_agent"
+        ],
+        "allowed_agents": [
+          "itinerary_agent"
+        ]
+      },
+      "actual": {
+        "guardrail_allowed": true,
+        "destination": "Tokyo",
+        "trip_constraints": {
+          "destination": "Tokyo",
+          "origin": "",
+          "duration": "7 days",
+          "budget": "",
+          "travel_style": "",
+          "special_preferences": []
+        },
+        "selected_agents": [
+          "itinerary_agent"
+        ],
+        "response_exists": false,
+        "llm_calls": 3
+      },
+      "scores": {
+        "guardrail": "PASS",
+        "destination": "PASS",
+        "agent_selection": "PASS",
+        "expected_agents": [
+          "itinerary_agent"
+        ],
+        "actual_agents": [
+          "itinerary_agent"
+        ],
+        "missing_agents": [],
+        "unexpected_agents": [],
+        "response_exists": "PASS",
+        "flight_search": "NOT_TESTED",
+        "tool_status": "NOT_TESTED",
+        "tool_errors": [],
+        "overall_status": "PASS",
+        "llm_errors": [],
+        "unvalidated_expected_fields": []
+      },
+      "overall_status": "PASS",
+      "tool_errors": [],
+      "llm_errors": [],
+      "runtime_error": null
+    },
+    {
+      "id": "travel_003",
+      "query": "Find me a flight from Delhi to Dubai next Friday.",
+      "expected": {
+        "guardrail_allowed": true,
+        "destination": "Dubai",
+        "required_agents": [
+          "flight_agent",
+          "itinerary_agent"
+        ],
+        "allowed_agents": [
+          "flight_agent",
+          "itinerary_agent"
+        ],
+        "expected_flight": {
+          "status": "success",
+          "origin": "DEL",
+          "destination": "DXB",
+          "minimum_offers": 1
+        }
+      },
+      "actual": {
+        "guardrail_allowed": true,
+        "destination": "Dubai",
+        "trip_constraints": {
+          "destination": "Dubai",
+          "origin": "Delhi",
+          "duration": "",
+          "budget": "",
+          "travel_style": "",
+          "special_preferences": []
+        },
+        "selected_agents": [
+          "flight_agent",
+          "itinerary_agent"
+        ],
+        "response_exists": false,
+        "llm_calls": 3
+      },
+      "scores": {
+        "guardrail": "PASS",
+        "destination": "PASS",
+        "agent_selection": "PASS",
+        "expected_agents": [
+          "flight_agent",
+          "itinerary_agent"
+        ],
+        "actual_agents": [
+          "flight_agent",
+          "itinerary_agent"
+        ],
+        "missing_agents": [],
+        "unexpected_agents": [],
+        "response_exists": "PASS",
+        "flight_search": "PASS",
+        "tool_status": "PASS",
+        "tool_errors": [],
+        "overall_status": "PASS",
+        "llm_errors": [],
+        "unvalidated_expected_fields": []
+      },
+      "overall_status": "PASS",
+      "tool_errors": [],
+      "llm_errors": [],
+      "runtime_error": null
+    },
+    {
+      "id": "travel_004",
+      "query": "What will the weather be like in London next week?",
+      "expected": {
+        "guardrail_allowed": true,
+        "destination": "London",
+        "required_agents": [
+          "itinerary_agent",
+          "weather_agent"
+        ],
+        "allowed_agents": [
+          "weather_agent",
+          "itinerary_agent"
+        ]
+      },
+      "actual": {
+        "guardrail_allowed": true,
+        "destination": "London",
+        "trip_constraints": {
+          "destination": "London",
+          "origin": "",
+          "duration": "",
+          "budget": "",
+          "travel_style": "",
+          "special_preferences": []
+        },
+        "selected_agents": [
+          "weather_agent",
+          "itinerary_agent"
+        ],
+        "response_exists": false,
+        "llm_calls": 3
+      },
+      "scores": {
+        "guardrail": "PASS",
+        "destination": "PASS",
+        "agent_selection": "PASS",
+        "expected_agents": [
+          "itinerary_agent",
+          "weather_agent"
+        ],
+        "actual_agents": [
+          "itinerary_agent",
+          "weather_agent"
+        ],
+        "missing_agents": [],
+        "unexpected_agents": [],
+        "response_exists": "PASS",
+        "flight_search": "NOT_TESTED",
+        "tool_status": "PASS",
+        "tool_errors": [],
+        "overall_status": "PASS",
+        "llm_errors": [],
+        "unvalidated_expected_fields": []
+      },
+      "overall_status": "PASS",
+      "tool_errors": [],
+      "llm_errors": [],
+      "runtime_error": null
+    },
+    {
+      "id": "travel_005",
+      "query": "Tell me a joke about programming.",
+      "expected": {
+        "guardrail_allowed": false,
+        "destination": null,
+        "required_agents": [],
+        "allowed_agents": []
+      },
+      "actual": {
+        "guardrail_allowed": false,
+        "destination": "",
+        "trip_constraints": {
+          "destination": "",
+          "origin": "",
+          "duration": "",
+          "budget": "",
+          "travel_style": "",
+          "special_preferences": []
+        },
+        "selected_agents": [],
+        "response_exists": false,
+        "llm_calls": 1
+      },
+      "scores": {
+        "guardrail": "PASS",
+        "destination": "PASS",
+        "agent_selection": "PASS",
+        "expected_agents": [],
+        "actual_agents": [],
+        "missing_agents": [],
+        "unexpected_agents": [],
+        "response_exists": "PASS",
+        "flight_search": "NOT_TESTED",
+        "tool_status": "NOT_TESTED",
+        "tool_errors": [],
+        "overall_status": "PASS",
+        "llm_errors": [],
+        "unvalidated_expected_fields": []
+      },
+      "overall_status": "PASS",
+      "tool_errors": [],
+      "llm_errors": [],
+      "runtime_error": null
+    }
+  ]
+}

@@ -11,7 +11,8 @@ Featuring an **autonomous supervisor router**, **safety guardrails**, **token-op
 - **🤖 Supervisor Routing Engine**: Dynamically routes travel requests to specialized agents (*Flight*, *Hotel*, *Weather*, *Budget*, *Itinerary*) based on user intent.
 - **🛡️ Input Guardrail Agent**: Detects and blocks off-topic or unsafe queries before invoking specialized agents.
 - **🔌 Model Context Protocol (MCP) Integration**:
-  - **AviationStack MCP**: Retrieves airport codes, route options, and airline lists.
+  - **AviationStack MCP**: Retrieves scheduled flight details; ticket prices are
+    not reported unless supplied by the flight provider.
   - **Tavily MCP**: Executes real-time web searches for top accommodations, neighborhood advice, and local attractions.
   - **OpenWeather MCP**: Fetches live weather conditions and 5-day forecasts for destination cities.
 - **💰 Budget Feasibility Analyst**: Evaluates pricing risk factors, category breakdowns, and money-saving advice.
@@ -45,6 +46,27 @@ flowgraph TD
     FinalAgent --> Response([Final Travel Plan + PDF Export])
 ```
 
+### Flight Evaluation
+
+The Flight Agent uses AviationStack schedules in normal application mode. It
+does not use airport or airline reference-list calls during a flight search,
+and it leaves fields unavailable from the schedule (such as ticket price)
+unset. The evaluation runner always selects deterministic mock flight data,
+so its flight cases do not contact AviationStack:
+
+```bash
+# Windows
+.\.venv\Scripts\python.exe -m evaluation.run_eval
+
+# Run the focused tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+The evaluation mock only supplies test fixtures. It must not be used to make
+real booking decisions. The evaluation runner still exercises the configured
+LLM and other agents' services, so their credentials and services may be
+required for those cases.
+
 ---
 
 ## 📁 Project Structure
@@ -53,7 +75,13 @@ flowgraph TD
 TripMate-AI-Final/
 ├── app.py                      # FastAPI web server & API endpoints
 ├── backend.py                  # LangGraph StateGraph workflow, nodes, & checkpointer
+├── flight_provider.py          # AviationStack and deterministic evaluation providers
 ├── mcp_client.py               # MCP client setup (Tavily, AviationStack, Weather)
+├── evaluation/
+│   ├── dataset.py               # Deterministic evaluation cases
+│   ├── evaluators.py            # Result and error classification
+│   └── run_eval.py              # Evaluation entry point (mock flight mode)
+├── tests/                       # Offline provider and evaluator tests
 ├── weather_mcp_server.py       # Custom FastMCP weather server (OpenWeather API)
 ├── static/
 │   ├── style.css               # Glassmorphism UI styling & print layout
@@ -112,6 +140,7 @@ Create a `.env` file in the root directory (refer to `.env.example`):
 ```env
 GROQ_API_KEY="your_groq_api_key"
 AVIATIONSTACK_API_KEY="your_aviationstack_api_key"
+TRIPMATE_EVAL_MODE="false"
 DEFAULT_ORIGIN_IATA="DAC"
 TAVILY_API_KEY="your_tavily_api_key"
 OPENWEATHER_API_KEY="your_openweather_api_key"
@@ -210,4 +239,3 @@ Distributed under the MIT License. See `LICENSE` for details.
 - **LangGraph & LangChain**: For multi-agent state graph management and Human-in-the-Loop interrupts.
 - **Groq**: High-speed LLM inference engine (`openai/gpt-oss-120b`).
 - **FastMCP**: Model Context Protocol integration framework.
-

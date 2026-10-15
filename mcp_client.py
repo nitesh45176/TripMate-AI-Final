@@ -6,7 +6,7 @@ from typing import Any
 
 import certifi
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 
@@ -29,13 +29,16 @@ AVIATION_STACK_API_KEY = (
 )
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# LiteLLM gateway key
+LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY")
 
 WEATHER_SERVER_PATH = (
     BASE_DIR / "custom_weather_mcp_server.py"
     if (BASE_DIR / "custom_weather_mcp_server.py").is_file()
     else BASE_DIR / "weather_mcp_server.py"
 )
+
 UVX_COMMAND = shutil.which("uvx") or "uvx"
 
 
@@ -66,13 +69,17 @@ def _subprocess_env(**updates: str | None) -> dict[str, str]:
 
 
 # =========================================================
-# LLM
+# LLM - LiteLLM Gateway
 # =========================================================
 
-llm = ChatGroq(
-    model="openai/gpt-oss-120b",
-    api_key=_require_env("GROQ_API_KEY", GROQ_API_KEY),
-    max_retries=5,
+llm = ChatOpenAI(
+    model="tripmate-primary",
+    api_key=_require_env(
+        "LITELLM_MASTER_KEY",
+        LITELLM_MASTER_KEY,
+    ),
+    base_url="http://localhost:4000/v1",
+    max_retries=0,
 )
 
 
@@ -119,6 +126,10 @@ client = MultiServerMCPClient(
     }
 )
 
+
+# =========================================================
+# MCP server tool loader
+# =========================================================
 
 async def _get_server_tool(
     server_name: str,
@@ -302,7 +313,51 @@ async def forecast_mcp_search(city: str):
 # Destination extractor
 # =========================================================
 
-def extract_destination(query: str) -> str:
+def _heuristic_destination(query: str) -> str:
+    text = (query or "").strip()
+    if not text:
+        return ""
+
+    import re
+
+    patterns = [
+        r"\bto\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*)",
+        r"\bin\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*)",
+        r"\bvisit\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*)",
+        r"\bfor\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            candidate = match.group(1).strip()
+            if candidate and candidate.lower() not in {"i", "me"}:
+                return candidate
+
+    city_hints = [
+        "paris",
+        "tokyo",
+        "dubai",
+        "london",
+        "delhi",
+        "new york",
+        "bangkok",
+    ]
+    lowered = text.lower()
+    for city in city_hints:
+        if city in lowered:
+            return city.title()
+
+    return ""
+
+
+def extract_destination(
+    query: str,
+    invocation_counter: list[int] | None = None,
+) -> str:
+    heuristic = _heuristic_destination(query)
+    if heuristic:
+        return heuristic
+
     prompt = f"""
 Extract only the destination city or country from the travel request.
 
@@ -313,11 +368,13 @@ Return only the destination name.
 Do not add any explanation.
 """
 
-    response = llm.invoke(prompt)
-
-    destination = str(
-        response.content
-    ).strip()
+    try:
+        if invocation_counter is not None:
+            invocation_counter[0] += 1
+        response = llm.invoke(prompt)
+        destination = str(response.content).strip()
+    except Exception:
+        raise ValueError("The destination could not be extracted.")
 
     if not destination:
         raise ValueError(
