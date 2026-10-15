@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -36,6 +37,77 @@ class ContainerEntrypointTests(unittest.TestCase):
         with patch("container_entrypoint.shutil.which", return_value=None):
             with self.assertRaisesRegex(RuntimeError, "was not installed"):
                 container_entrypoint.gateway_command()
+
+    def test_gateway_environment_excludes_app_database_settings(self):
+        app_environment = {
+            "DATABASE_URL": "postgresql://app-db",
+            "DATABASE_URL_READ_REPLICA": "postgresql://replica",
+            "LITELLM_DATABASE_URL": "postgresql://litellm-db",
+            "DATABASE_CONNECTION_TIMEOUT": "10",
+            "STORE_MODEL_IN_DB": "true",
+            "DISABLE_SCHEMA_UPDATE": "true",
+            "DISABLE_PRISMA_HEALTH_CHECK_ON_STARTUP": "true",
+            "GROQ_API_KEY": "groq-provider-key",
+            "GEMINI_API_KEY": "gemini-provider-key",
+            "LITELLM_MASTER_KEY": "gateway-master-key",
+            "PORT": "10000",
+            "PATH": "system-path",
+        }
+
+        gateway_env = container_entrypoint.gateway_environment(app_environment)
+
+        self.assertNotIn("DATABASE_URL", gateway_env)
+        self.assertNotIn("DATABASE_URL_READ_REPLICA", gateway_env)
+        self.assertNotIn("LITELLM_DATABASE_URL", gateway_env)
+        self.assertNotIn("DATABASE_CONNECTION_TIMEOUT", gateway_env)
+        self.assertNotIn("STORE_MODEL_IN_DB", gateway_env)
+        self.assertNotIn("DISABLE_SCHEMA_UPDATE", gateway_env)
+        self.assertNotIn("DISABLE_PRISMA_HEALTH_CHECK_ON_STARTUP", gateway_env)
+        self.assertEqual(gateway_env["GROQ_API_KEY"], "groq-provider-key")
+        self.assertEqual(gateway_env["GEMINI_API_KEY"], "gemini-provider-key")
+        self.assertEqual(gateway_env["LITELLM_MASTER_KEY"], "gateway-master-key")
+        self.assertEqual(gateway_env["PORT"], "10000")
+        self.assertEqual(gateway_env["PATH"], "system-path")
+        self.assertIn("DATABASE_URL", app_environment)
+
+    def test_main_passes_isolated_environment_to_litellm_only(self):
+        gateway_process = MagicMock()
+        gateway_process.poll.return_value = 1
+        application_database_url = "postgresql://tripmate-db"
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "LITELLM_MASTER_KEY": "gateway-master-key",
+                    "GROQ_API_KEY": "groq-provider-key",
+                    "GEMINI_API_KEY": "gemini-provider-key",
+                    "DATABASE_URL": application_database_url,
+                    "LITELLM_DATABASE_URL": "postgresql://unused-gateway-db",
+                },
+                clear=True,
+            ),
+            patch("container_entrypoint.load_dotenv"),
+            patch("container_entrypoint.gateway_command", return_value=["litellm"]),
+            patch(
+                "container_entrypoint.application_command",
+                return_value=["uvicorn"],
+            ),
+            patch(
+                "container_entrypoint.subprocess.Popen",
+                return_value=gateway_process,
+            ) as popen,
+        ):
+            self.assertEqual(container_entrypoint.main(), 1)
+
+            gateway_env = popen.call_args.kwargs["env"]
+            self.assertNotIn("DATABASE_URL", gateway_env)
+            self.assertNotIn("LITELLM_DATABASE_URL", gateway_env)
+            self.assertEqual(
+                gateway_env["LITELLM_MASTER_KEY"],
+                "gateway-master-key",
+            )
+            self.assertEqual(os.environ["DATABASE_URL"], application_database_url)
 
     def test_application_command_uses_render_port(self):
         command = container_entrypoint.application_command({"PORT": "12345"})

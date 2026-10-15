@@ -16,6 +16,11 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 LITELLM_HEALTH_URL = "http://127.0.0.1:4000/health/liveliness"
+LITELLM_DATABASE_SETTINGS = {
+    "STORE_MODEL_IN_DB",
+    "DISABLE_SCHEMA_UPDATE",
+    "DISABLE_PRISMA_HEALTH_CHECK_ON_STARTUP",
+}
 
 
 def validate_environment(environ: dict[str, str] | None = None) -> None:
@@ -53,6 +58,22 @@ def gateway_command() -> list[str]:
         "--port",
         "4000",
     ]
+
+
+def gateway_environment(
+    environ: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Keep provider credentials but isolate LiteLLM from app database config."""
+
+    settings = os.environ if environ is None else environ
+    return {
+        name: value
+        for name, value in settings.items()
+        if not (
+            name.upper().startswith(("DATABASE_", "LITELLM_DATABASE_"))
+            or name.upper() in LITELLM_DATABASE_SETTINGS
+        )
+    }
 
 
 def application_command(environ: dict[str, str] | None = None) -> list[str]:
@@ -156,6 +177,7 @@ def main() -> int:
         gateway = subprocess.Popen(
             litellm_command,
             cwd=BASE_DIR,
+            env=gateway_environment(),
             start_new_session=os.name != "nt",
         )
         children.append(gateway)
