@@ -1,70 +1,146 @@
 # ✈️ TripMate AI — Multi-Agent Travel Planner
 
-**TripMate AI** is an advanced, production-ready multi-agent travel planning system built with **FastAPI**, **LangGraph**, **Groq (GPT-OSS 120B)**, **PostgreSQL**, and **Model Context Protocol (MCP)** integrations for live aviation, weather, and hotel search.
+TripMate AI is an AI-powered travel planning application built with **FastAPI, LangGraph, LiteLLM, PostgreSQL, and the Model Context Protocol (MCP)**. It orchestrates specialized agents to help users plan trips based on their destination, duration, budget, and travel preferences.
 
-Featuring an **autonomous supervisor router**, **safety guardrails**, **token-optimized LLM calls**, and a **Human-in-the-Loop (HITL) approval gate**, TripMate AI generates comprehensive, budget-aware, multi-day travel itineraries complete with interactive UI and PDF export capabilities.
+The system combines intent-based agent routing, input guardrails, external travel information tools, budget analysis, and itinerary generation through a stateful multi-agent workflow.
 
----
+## 🌟 Key Features
 
-## 🌟 Key Feature
-
-- **🤖 Supervisor Routing Engine**: Dynamically routes travel requests to specialized agents (*Flight*, *Hotel*, *Weather*, *Budget*, *Itinerary*) based on user intent.
-- **🛡️ Input Guardrail Agent**: Detects and blocks off-topic or unsafe queries before invoking specialized agents.
-- **🔌 Model Context Protocol (MCP) Integration**:
-  - **AviationStack MCP**: Retrieves airport codes, route options, and airline lists.
-  - **Tavily MCP**: Executes real-time web searches for top accommodations, neighborhood advice, and local attractions.
-  - **OpenWeather MCP**: Fetches live weather conditions and 5-day forecasts for destination cities.
-- **💰 Budget Feasibility Analyst**: Evaluates pricing risk factors, category breakdowns, and money-saving advice.
-- **👤 Human-in-the-Loop (HITL) Gate**: Intercepts draft itineraries using LangGraph `interrupt()`, allowing travelers to approve or request revisions (*Lower Hotel Budget*, *Faster Flight*, *More Free Time*) before generating the final verified response.
-- **⚡ Token Rate-Limit Resilience**: Includes prompt context truncation and exponential backoff retry handling for Groq's 8,000 TPM limit.
-- **🎨 Glassmorphism Interactive UI**: Features dual input modes (Natural Prompt vs Guided Form Builder), visual agent execution cards, markdown rendering, and 1-click **PDF Download**.
+- **🤖 Multi-Agent Orchestration:** Uses LangGraph to coordinate specialized Flight, Hotel, Weather, Budget, and Itinerary agents.
+- **🧭 Supervisor Routing:** Selects relevant agents based on the user's travel request.
+- **🛡️ Input Guardrails:** Identifies and blocks off-topic requests before travel-specific processing.
+- **🔀 LLM Gateway with Fallback:** Uses LiteLLM to provide a unified OpenAI-compatible interface to the primary Groq model and a Gemini fallback model.
+- **✈️ Flight Search:** Integrates AviationStack through an MCP-based workflow and a dedicated flight-provider abstraction.
+- **🌦️ Weather Information:** Retrieves weather conditions and forecasts through the weather MCP integration.
+- **🔎 Travel Research:** Uses Tavily for web research, accommodation discovery, neighborhood information, and attractions.
+- **💰 Budget Analysis:** Evaluates trip costs, budget feasibility, and potential savings.
+- **👤 Human-in-the-Loop:** Supports itinerary review and revision through LangGraph workflow interruptions where configured.
+- **🗃️ Persistent Workflow State:** Uses PostgreSQL-backed LangGraph checkpointing to support stateful conversations.
+- **🎨 Interactive Web Interface:** Provides natural-language and guided-form travel inputs, agent execution feedback, itinerary rendering, and PDF export.
+- **🧪 Automated Evaluation:** Measures routing, guardrail decisions, destination extraction, response existence, and flight-search behavior.
+- **📊 JSON Evaluation Reports:** Saves machine-readable evaluation summaries and timestamped run reports.
+- **✅ Automated Tests:** Includes tests for evaluation logic, flight-provider behavior, and supervisor routing.
 
 ---
 
 ## 🏗️ System Architecture
 
+### Application workflow
+
 ```mermaid
-flowgraph TD
-    User([User Request]) --> Guardrail{Input Guardrail}
-    Guardrail -->|Blocked| BlockedResponse[Return Safety Explanation]
-    Guardrail -->|Passed| Supervisor[Supervisor Agent]
-    
-    Supervisor --> FlightAgent[✈️ Flight Agent / AviationStack MCP]
-    Supervisor --> HotelAgent[🏨 Hotel Agent / Tavily MCP]
-    Supervisor --> WeatherAgent[🌦️ Weather Agent / OpenWeather MCP]
-    Supervisor --> BudgetAgent[💰 Budget Analyst Agent]
-    
-    FlightAgent --> ItineraryAgent[🗓️ Itinerary Specialist Agent]
-    HotelAgent --> ItineraryAgent
-    WeatherAgent --> ItineraryAgent
-    BudgetAgent --> ItineraryAgent
-    
-    ItineraryAgent --> HITL{👤 Human-in-the-Loop Review}
-    HITL -->|Revise Feedback| FinalAgent[✨ Final Response Agent]
-    HITL -->|Approved| FinalAgent
-    FinalAgent --> Response([Final Travel Plan + PDF Export])
+flowchart TD
+    A[User Request] --> B[FastAPI Application]
+    B --> C[Input Guardrail]
+    C -->|Blocked| D[Safety Response]
+    C -->|Allowed| E[Supervisor Router]
+    E --> F[Flight Agent]
+    E --> G[Hotel Agent]
+    E --> H[Weather Agent]
+    E --> I[Budget Agent]
+    F --> J[Itinerary Agent]
+    G --> J
+    H --> J
+    I --> J
+    J --> K[Human Review / Approval]
+    K --> L[Final Response]
+    L --> M[Interactive UI / PDF Export]
 ```
 
-### Flight Evaluation
+### LLM gateway
 
-The Flight Agent uses AviationStack schedules in normal application mode. It
-does not use airport or airline reference-list calls during a flight search,
-and it leaves fields unavailable from the schedule (such as ticket price)
-unset. The evaluation runner always selects deterministic mock flight data,
-so its flight cases do not contact AviationStack:
+TripMate AI uses LiteLLM as a unified model gateway, separating application-level LLM calls from provider-specific APIs.
 
-```bash
-# Windows
+```mermaid
+flowchart TD
+    A[TripMate AI Backend] --> B[LiteLLM Gateway :4000]
+    B --> C[Primary: Groq GPT-OSS 120B]
+    B -->|Fallback on configured failures| D[Gemini Flash]
+```
+
+- The backend communicates with the gateway through an OpenAI-compatible API.
+- The gateway configuration defines the primary and fallback models.
+- Provider credentials are loaded through environment variables.
+- The fallback behavior depends on the configured LiteLLM model and retry settings.
+
+### External integrations
+
+| Integration | Purpose |
+|---|---|
+| AviationStack | Flight schedule information |
+| Tavily | Web search and travel research |
+| OpenWeather | Weather information and forecasts |
+| PostgreSQL | Persistent LangGraph workflow state |
+| LangSmith (optional) | LLM workflow tracing and observability |
+
+---
+
+## 🧪 Evaluation Framework
+
+TripMate AI includes a reproducible evaluation runner and a test suite to validate important workflow behavior.
+
+### Current baseline
+
+The current evaluation dataset contains **5 test cases** covering:
+
+- Travel planning with a budget
+- Destination and duration extraction
+- Flight-search routing
+- Weather-related routing
+- Off-topic request blocking
+
+The latest recorded baseline reports:
+
+| Metric | Result |
+|---|---:|
+| Evaluation cases passed | 5/5 |
+| Pass rate | 100% |
+| Guardrail accuracy | 5/5 |
+| Destination accuracy | 5/5 |
+| Agent-selection accuracy | 5/5 |
+| Response-existence score | 5/5 |
+| Flight-search score | 1/1 |
+| Total LLM calls | 14 |
+| Real AviationStack requests during evaluation | 0 |
+
+**Important:** These results apply only to the current five-case dataset. They do not establish overall production accuracy. Review the response-existence evaluator and its report field for consistency before relying on that metric.
+
+### Mock versus production flight search
+
+The evaluation runner uses a deterministic mock flight provider, avoiding real AviationStack requests for flight evaluation cases. Normal application execution uses the configured AviationStack provider.
+
+Mock results are test fixtures only and must not be used for real travel or booking decisions. Evaluation still exercises the configured LLM and may require other external services and credentials.
+
+### Run evaluation
+
+From the repository root on Windows:
+
+```powershell
 .\.venv\Scripts\python.exe -m evaluation.run_eval
+```
 
-# Run the focused tests
+The runner writes reports to:
+
+```text
+evaluation/
+├── dataset.py
+├── evaluators.py
+├── run_eval.py
+└── reports/
+    ├── latest_report.json
+    └── run_<timestamp>.json
+```
+
+Inspect the latest summary:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import json; r=json.load(open('evaluation/reports/latest_report.json', encoding='utf-8')); print(json.dumps(r['summary'], indent=2))"
+```
+
+### Run automated tests
+
+```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
-
-The evaluation mock only supplies test fixtures. It must not be used to make
-real booking decisions. The evaluation runner still exercises the configured
-LLM and other agents' services, so their credentials and services may be
-required for those cases.
 
 ---
 
@@ -72,75 +148,96 @@ required for those cases.
 
 ```text
 TripMate-AI-Final/
-├── app.py                      # FastAPI web server & API endpoints
-├── backend.py                  # LangGraph StateGraph workflow, nodes, & checkpointer
-├── flight_provider.py          # AviationStack and deterministic evaluation providers
-├── mcp_client.py               # MCP client setup (Tavily, AviationStack, Weather)
+├── app.py
+├── backend.py
+├── flight_provider.py
+├── mcp_client.py
+├── weather_mcp_server.py
+├── litellm_config.yaml
+├── requirements.txt
+├── Dockerfile
+├── .dockerignore
+├── .gitignore
+├── .env.example
 ├── evaluation/
-│   ├── dataset.py               # Deterministic evaluation cases
-│   ├── evaluators.py            # Result and error classification
-│   └── run_eval.py              # Evaluation entry point (mock flight mode)
-├── tests/                       # Offline provider and evaluator tests
-├── weather_mcp_server.py       # Custom FastMCP weather server (OpenWeather API)
+│   ├── __init__.py
+│   ├── dataset.py
+│   ├── evaluators.py
+│   ├── run_eval.py
+│   └── reports/
+├── tests/
+│   ├── test_evaluation.py
+│   ├── test_flight_provider.py
+│   └── test_supervisor_routing.py
 ├── static/
-│   ├── style.css               # Glassmorphism UI styling & print layout
-│   └── script.js               # Frontend state management & API handling
-├── templates/
-│   └── index.html              # Main single-page application template
-├── Dockerfile                  # Container build instructions
-├── .dockerignore               # Files excluded from Docker builds
-├── .gitignore                  # Git untracked patterns (.env, __pycache__)
-├── .env.example                # Template for environment variables
-└── requirements.txt            # Python dependencies
+│   ├── style.css
+│   └── script.js
+└── templates/
+    └── index.html
 ```
+
+- `app.py` — FastAPI application and HTTP endpoints.
+- `backend.py` — LangGraph state, agent nodes, routing, and workflow execution.
+- `flight_provider.py` — Production AviationStack adapter and deterministic evaluation provider.
+- `mcp_client.py` — MCP client configuration and external-tool integration.
+- `litellm_config.yaml` — LLM gateway model and fallback configuration.
+- `evaluation/` — Test dataset, evaluators, runner, and JSON reports.
+- `tests/` — Automated unit tests.
+- `static/` and `templates/` — Frontend assets and HTML template.
 
 ---
 
-## ⚙️ Prerequisites & Setup
+## ⚙️ Prerequisites
 
-### 1. Requirements
-- **Python 3.10+**
-- **PostgreSQL Database** (Render PostgreSQL, Supabase, Neon, or local PostgreSQL)
-- API Keys:
-  - [Groq API Key](https://console.groq.com/)
-  - [Tavily Search API Key](https://tavily.com/)
-  - [AviationStack API Key](https://aviationstack.com/)
-  - [OpenWeather API Key](https://openweathermap.org/)
-  - *(Optional)* [LangSmith API Key](https://smith.langchain.com/) for telemetry
+- Python version compatible with the project's dependencies
+- PostgreSQL database accessible to the application
+- LiteLLM installed in the active Python environment
+- API credentials for the providers you intend to use:
+  - [Groq](https://console.groq.com/)
+  - [Google AI Studio](https://aistudio.google.com/) for Gemini
+  - [AviationStack](https://aviationstack.com/)
+  - [Tavily](https://tavily.com/)
+  - [OpenWeather](https://openweathermap.org/)
+  - [LangSmith](https://smith.langchain.com/) (optional)
 
-### 2. Installation
+Check the project's dependency and Python-version requirements before installing.
 
-Clone the repository:
-```bash
+---
+
+## 🚀 Run Locally on Windows
+
+### 1. Clone the repository
+
+```powershell
 git clone https://github.com/nitesh45176/TripMate-AI-Final.git
 cd TripMate-AI-Final
 ```
 
-Create and activate a virtual environment:
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
+### 2. Create and activate a virtual environment
 
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-Install dependencies:
-```bash
-pip install -r requirements.txt
+If the repository already has a working `.venv`, activate that environment instead of recreating it.
+
+### 3. Install dependencies
+
+```powershell
+python -m pip install -r requirements.txt
 ```
 
-### 3. Environment Variables Setup
+Ensure the environment also contains LiteLLM if it is not installed by the project's requirements.
 
-Create a `.env` file in the root directory (refer to `.env.example`):
+### 4. Configure environment variables
+
+Create a `.env` file using `.env.example` as a template. Fill in the credentials locally; **never commit `.env` or real API keys to GitHub**.
+
+Example configuration structure:
 
 ```env
 GROQ_API_KEY="your_groq_api_key"
-GEMINI_API_KEY="your_gemini_api_key"
-LITELLM_MASTER_KEY="your_litellm_master_key"
-LITELLM_BASE_URL="http://127.0.0.1:4000/v1"
 AVIATIONSTACK_API_KEY="your_aviationstack_api_key"
 TRIPMATE_EVAL_MODE="false"
 DEFAULT_ORIGIN_IATA="DAC"
@@ -170,15 +267,6 @@ python app.py
 uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-When running outside Docker, start LiteLLM separately before submitting
-travel requests:
-```bash
-litellm --config litellm_config.yaml --host 127.0.0.1 --port 4000
-```
-The local gateway and application require the credentials shown in the
-environment setup above. The Docker deployment starts and supervises both
-processes in one container.
-
 Open your browser and navigate to:
 ```text
 http://127.0.0.1:8000
@@ -199,39 +287,26 @@ http://127.0.0.1:8000
    - Name your database (e.g. `tripmate-db`) and click **Create Database**.
    - Copy the **External Database URL** (e.g. `postgresql://user:password@dpg-xxx.oregon-postgres.render.com/dbname`).
 
-3. **Deploy the TripMate application as one Docker Web Service**:
+3. **Deploy as a Web Service on Render**:
    - In Render Dashboard, click **New +** $\rightarrow$ **Web Service**.
    - Connect your GitHub repository (`TripMate-AI-Final`).
    - Configure the service:
      - **Name**: `tripmate-ai`
-     - **Environment**: `Docker`
-     - **Dockerfile Path**: `./Dockerfile`
-     - **Health Check Path**: `/health`
-   - Leave the Docker service's start command at its default so the Dockerfile
-     runs `tini -- python container_entrypoint.py`. The entrypoint validates
-     configuration, starts LiteLLM on `127.0.0.1:4000`, waits for its
-     `/health/liveliness` endpoint, then starts Uvicorn on `0.0.0.0:$PORT`.
-     It supervises both processes and terminates both on shutdown. The app
-     `/health` endpoint returns 503 if its local gateway is unhealthy.
-   - Set these environment variables on this **single** Render service:
-     - `LITELLM_MASTER_KEY` (use a strong generated secret)
+     - **Environment**: `Python 3`
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+   - Scroll down to **Environment Variables** and add:
      - `GROQ_API_KEY`
-     - `GEMINI_API_KEY`
      - `AVIATIONSTACK_API_KEY`
      - `TAVILY_API_KEY`
      - `OPENWEATHER_API_KEY`
-     - `DATABASE_URL` (Render PostgreSQL URL)
-     - `TRIPMATE_EVAL_MODE=false`
-     - `DEFAULT_ORIGIN_IATA=DAC` (optional)
-   - `LITELLM_BASE_URL` defaults to
-     `http://127.0.0.1:4000/v1` and normally should be left unset for this
-     single-container deployment. Set it only when intentionally overriding
-     the backend's gateway address.
+     - `DATABASE_URL` *(Paste the Render PostgreSQL URL)*
+     - `DEFAULT_ORIGIN_IATA` = `DAC`
    - Click **Create Web Service**.
 
 ---
 
-### Local Docker deployment
+### Option 2: Deployment via Docker
 
 1. **Build the Docker image**:
    ```bash
@@ -241,7 +316,7 @@ http://127.0.0.1:8000
 2. **Run the Container**:
    ```bash
    docker run -d \
-     -p 8000:10000 \
+     -p 8000:8000 \
      --env-file .env \
      --name tripmate-app \
      tripmate-ai
@@ -259,12 +334,17 @@ flight provider; it does not mock the LLM or other external services.
 
 ## 📜 License
 
-Distributed under the MIT License. See `LICENSE` for details.
+Distributed under the MIT License. See the `LICENSE` file for details.
 
 ---
 
-## 👥 Credits & Acknowledgments
+## 👥 Credits and Acknowledgments
 
-- **LangGraph & LangChain**: For multi-agent state graph management and Human-in-the-Loop interrupts.
-- **Groq**: High-speed LLM inference engine (`openai/gpt-oss-120b`).
-- **FastMCP**: Model Context Protocol integration framework.
+- **LangGraph and LangChain** — stateful agent workflows and LLM integration.
+- **LiteLLM** — unified model gateway and configured fallback support.
+- **Groq** — primary LLM inference provider.
+- **Google Gemini** — configured fallback model.
+- **FastAPI** — backend API framework.
+- **FastMCP and MCP integrations** — access to external travel tools.
+- **PostgreSQL** — persistent workflow state.
+- **LangSmith** — optional tracing and observability.
