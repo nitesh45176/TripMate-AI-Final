@@ -284,7 +284,7 @@ http://127.0.0.1:8000
 
 ## 📦 Deployment Guide
 
-### Option 1: Deploying on Render (Recommended)
+### Option 1: Deploying on Render
 
 1. **Push your code to GitHub**:
    Ensure your latest code is pushed to your repository (`main` branch).
@@ -321,6 +321,51 @@ http://127.0.0.1:8000
      LiteLLM child process; this configuration does not enable LiteLLM's
      database-backed features.
    - Click **Create Web Service**.
+
+---
+
+### Option 2: Deploying the complete Docker app on Vercel
+
+Vercel's Container Runtime is currently in beta. This deploys the existing
+Docker image as a Vercel Function, including both FastAPI and the LiteLLM
+gateway; it is not an always-on server. PostgreSQL and the external API
+providers remain separate services.
+
+1. **Push your code to GitHub** and import the repository in the Vercel
+   Dashboard.
+2. Keep the project root at the repository root. The included `vercel.json`
+   selects Vercel's **Container** framework so Vercel builds the root
+   `Dockerfile` rather than detecting the Python app.
+3. In **Project Settings → Environment Variables**, set the following for the
+   environments you will deploy:
+   - `PORT` = `10000`
+   - `DATABASE_URL` = a publicly reachable PostgreSQL connection URL with SSL
+     enabled. A Render database can be reused with its external URL if it
+     allows connections from Vercel; otherwise use a managed PostgreSQL
+     provider reachable from Vercel.
+   - `GROQ_API_KEY`
+   - `GEMINI_API_KEY`
+   - `LITELLM_MASTER_KEY`
+   - `AVIATIONSTACK_API_KEY`
+   - `TAVILY_API_KEY`
+   - `OPENWEATHER_API_KEY`
+   - `DEFAULT_ORIGIN_IATA` = `DAC` (or your preferred default)
+   - `TRIPMATE_EVAL_MODE` = `false`
+
+   Keep `LITELLM_BASE_URL` unset: the container's default points to the local
+   LiteLLM gateway at `http://127.0.0.1:4000/v1`. The `DATABASE_URL` is used by
+   TripMate/LangGraph and is intentionally excluded from the LiteLLM child
+   process. Optional LangSmith variables can be added if tracing is enabled.
+4. Deploy from the Vercel Dashboard or with the Vercel CLI. After deployment,
+   check the deployment logs and visit `/` and `/health`.
+
+The Container Runtime scales down when idle and requests are subject to
+Vercel's Function duration and resource limits. A multi-agent trip-planning
+request can take longer than a basic API call; set the maximum function
+duration allowed by your Vercel plan and test the full planning and approval
+flows before switching production traffic. The database must be reachable
+from Vercel; Render's internal database URL will not work from a Vercel
+deployment.
 
 ---
 
